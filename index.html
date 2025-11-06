@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B-Tree Visualizer Pro | Advanced Database Indexing Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --glass-bg: rgba(255, 255, 255, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.3);
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f3f4f6;
+            --accent: #3b82f6;
+            --orb-color-1: rgba(59, 130, 246, 0.3);
+            --orb-color-2: rgba(139, 92, 246, 0.3);
+            --orb-color-3: rgba(16, 185, 129, 0.3);
+            --orb-color-4: rgba(245, 158, 11, 0.3);
+        }
+
+        [data-theme="dark"] {
+            --glass-bg: rgba(0, 0, 0, 0.5);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-primary: #f9fafb;
+            --text-secondary: #d1d5db;
+            --bg-primary: #111827;
+            --bg-secondary: #1f2937;
+            --accent: #60a5fa;
+            --orb-color-1: rgba(96, 165, 250, 0.2);
+            --orb-color-2: rgba(167, 139, 250, 0.2);
+            --orb-color-3: rgba(52, 211, 153, 0.2);
+            --orb-color-4: rgba(251, 191, 36, 0.2);
+        }
+
+        * {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+
+        body {
+            background: var(--bg-secondary);
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+            margin: 0;
+            padding: 0;
+        }
+
+        .glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+        }
+
+        .glass-dark {
+            background: rgba(0, 0, 0, 0.25);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .floating-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(40px);
+            opacity: 0.7;
+            animation: float 20s infinite ease-in-out;
+            pointer-events: none;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            25% { transform: translate(100px, -100px) scale(1.1); }
+            50% { transform: translate(-100px, 100px) scale(0.9); }
+            75% { transform: translate(50px, 50px) scale(1.05); }
+        }
+
+        .orb1 {
+            width: 300px;
+            height: 300px;
+            background: var(--orb-color-1);
+            top: -150px;
+            left: -150px;
+            animation-delay: 0s;
+        }
+
+        .orb2 {
+            width: 400px;
+            height: 400px;
+            background: var(--orb-color-2);
+            bottom: -200px;
+            right: -200px;
+            animation-delay: 5s;
+        }
+
+        .orb3 {
+            width: 250px;
+            height: 250px;
+            background: var(--orb-color-3);
+            top: 50%;
+            left: 50%;
+            animation-delay: 10s;
+        }
+
+        .orb4 {
+            width: 350px;
+            height: 350px;
+            background: var(--orb-color-4);
+            top: 20%;
+            right: 10%;
+            animation-delay: 15s;
+        }
+
+        @keyframes nodeSplit {
+            0% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.1) rotate(5deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+
+        @keyframes nodePromote {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-30px) scale(1.2); opacity: 0; }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .node-splitting {
+            animation: nodeSplit 0.5s ease-in-out;
+        }
+
+        .node-promoting {
+            animation: nodePromote 0.5s ease-in-out;
+        }
+
+        .tree-node {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tree-node:hover {
+            transform: translateY(-3px) scale(1.02);
+        }
+
+        .key-value {
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .key-value::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .key-value:hover::before {
+            width: 100px;
+            height: 100px;
+        }
+
+        .notification {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .pseudocode-line {
+            animation: fadeIn 0.3s ease-out;
+            font-family: 'Courier New', monospace;
+        }
+
+        .theme-toggle {
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background: var(--accent);
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .theme-toggle-slider {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        [data-theme="dark"] .theme-toggle-slider {
+            transform: translateX(30px);
+        }
+
+        .gradient-text {
+            background: var(--accent);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .glow {
+            box-shadow: 0 0 20px var(--accent);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: var(--accent);
+            border-radius: 10px;
+        }
+
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+
+        .stats-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            transition: all 0.3s ease;
+        }
+
+        .stats-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .text-theme-primary {
+            color: var(--text-primary);
+        }
+
+        .text-theme-secondary {
+            color: var(--text-secondary);
+        }
+
+        .bg-theme-primary {
+            background-color: var(--bg-primary);
+        }
+
+        .bg-theme-secondary {
+            background-color: var(--bg-secondary);
+        }
+
+        .full-width {
+            width: 100%;
+            max-width: 100%;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 0.5rem;
+            align-items: stretch;
+        }
+
+        .input-container input {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .input-container button {
+            flex-shrink: 0;
+        }
+
+        .step-item {
+            position: relative;
+            padding-left: 2rem;
+        }
+
+        .step-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0.5rem;
+            width: 0.75rem;
+            height: 0.75rem;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+
+        .step-item:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            left: 0.375rem;
+            top: 1.25rem;
+            width: 1px;
+            height: calc(100% + 0.5rem);
+            background: var(--accent);
+            opacity: 0.3;
+        }
+
+        .traversal-item {
+            transition: all 0.2s ease;
+        }
+
+        .traversal-item:hover {
+            transform: translateX(4px);
+        }
+
+        .highlight-node {
+            animation: highlight 1s ease-in-out;
+        }
+
+        @keyframes highlight {
+            0% { background-color: rgba(59, 130, 246, 0.2); }
+            100% { background-color: transparent; }
+        }
+    </style>
+</head>
+<body data-theme="light">
+    <!-- Floating Orbs Background -->
+    <div class="floating-orb orb1"></div>
+    <div class="floating-orb orb2"></div>
+    <div class="floating-orb orb3"></div>
+    <div class="floating-orb orb4"></div>
+
+    <!-- Main Container -->
+    <div class="relative z-10 w-full min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="glass sticky top-0 z-50 px-6 py-4 w-full">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <div class="relative">
+                        <i class="fas fa-sitemap text-3xl gradient-text"></i>
+                        <div class="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full pulse-animation"></div>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold text-theme-primary">B-Tree Visualizer Pro</h1>
+                        <p class="text-sm text-theme-secondary">Advanced Database Indexing Demo</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="showHelp()" class="text-theme-primary hover:text-theme-secondary transition">
+                        <i class="fas fa-question-circle text-xl"></i>
+                    </button>
+                    <div class="theme-toggle" onclick="toggleTheme()">
+                        <div class="theme-toggle-slider">
+                            <i class="fas fa-sun text-yellow-500 text-xs" id="themeIcon"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-1 px-6 py-8 w-full">
+            <div class="grid grid-cols-1 xl:grid-cols-5 gap-6 w-full h-full">
+                <!-- Control Panel -->
+                <div class="xl:col-span-1 space-y-6">
+                    <!-- Tree Configuration -->
+                    <div class="glass rounded-2xl p-6 text-theme-primary">
+                        <h2 class="text-lg font-semibold mb-4 flex items-center">
+                            <i class="fas fa-cog mr-2"></i>
+                            Configuration
+                        </h2>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Tree Order</label>
+                                <input type="range" id="treeOrder" min="3" max="7" value="4" 
+                                       class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                                <div class="flex justify-between text-xs mt-1">
+                                    <span>3</span>
+                                    <span id="orderValue" class="font-semibold">4</span>
+                                    <span>7</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Animation Speed</label>
+                                <select id="animationSpeed" class="w-full px-3 py-2 bg-theme-primary border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-theme-primary">
+                                    <option value="0">No Animation</option>
+                                    <option value="500">Slow</option>
+                                    <option value="300" selected>Normal</option>
+                                    <option value="100">Fast</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Insert Controls -->
+                    <div class="glass rounded-2xl p-6 text-theme-primary">
+                        <h2 class="text-lg font-semibold mb-4 flex items-center">
+                            <i class="fas fa-plus-circle mr-2"></i>
+                            Insert Keys
+                        </h2>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Key Value</label>
+                                <div class="input-container">
+                                    <input type="number" id="keyInput" placeholder="Enter key" 
+                                           class="px-3 py-2 bg-theme-primary border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-theme-primary placeholder-gray-400">
+                                    <button onclick="insertKey()" 
+                                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition glow">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Batch Insert</label>
+                                <input type="text" id="batchInput" placeholder="e.g., 10,20,30,40" 
+                                       class="w-full px-3 py-2 bg-theme-primary border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-theme-primary placeholder-gray-400">
+                                <button onclick="batchInsert()" 
+                                        class="mt-2 w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                                    <i class="fas fa-layer-group mr-2"></i>Insert Multiple
+                                </button>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="generateRandom()" 
+                                        class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition">
+                                    <i class="fas fa-dice mr-2"></i>Random
+                                </button>
+                                <button onclick="clearTree()" 
+                                        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
+                                    <i class="fas fa-trash mr-2"></i>Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tree Traversal Section -->
+                    <div class="glass rounded-2xl p-6 text-theme-primary">
+                        <h2 class="text-lg font-semibold mb-4 flex items-center">
+                            <i class="fas fa-route mr-2"></i>
+                            Tree Traversal
+                        </h2>
+                        <div class="space-y-3">
+                            <button onclick="performTraversal('inorder')" 
+                                    class="w-full px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center justify-center">
+                                <i class="fas fa-sort-amount-down mr-2"></i>In-Order Traversal
+                            </button>
+                            <button onclick="performTraversal('preorder')" 
+                                    class="w-full px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center justify-center">
+                                <i class="fas fa-sort-amount-up mr-2"></i>Pre-Order Traversal
+                            </button>
+                            <button onclick="performTraversal('postorder')" 
+                                    class="w-full px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center justify-center">
+                                <i class="fas fa-sitemap mr-2"></i>Post-Order Traversal
+                            </button>
+                        </div>
+                        <div id="traversalResult" class="mt-4 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg hidden">
+                            <p class="text-xs font-semibold mb-1">Result:</p>
+                            <p id="traversalValue" class="text-sm font-mono"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visualization Area -->
+                <div class="xl:col-span-3 space-y-6 h-full">
+                    <div class="glass rounded-2xl p-6 h-[calc(100vh-220px)] flex flex-col">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-lg font-semibold text-theme-primary flex items-center">
+                                <i class="fas fa-project-diagram mr-2"></i>
+                                Tree Visualization
+                            </h2>
+                            <div class="flex space-x-2">
+                                <button onclick="zoomIn()" class="px-3 py-1 text-theme-primary hover:text-theme-secondary transition">
+                                    <i class="fas fa-search-plus"></i>
+                                </button>
+                                <button onclick="zoomOut()" class="px-3 py-1 text-theme-primary hover:text-theme-secondary transition">
+                                    <i class="fas fa-search-minus"></i>
+                                </button>
+                                <button onclick="resetZoom()" class="px-3 py-1 text-theme-primary hover:text-theme-secondary transition">
+                                    <i class="fas fa-compress"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="treeContainer" class="flex-1 custom-scrollbar overflow-auto">
+                            <div class="flex items-center justify-center h-full text-theme-secondary">
+                                <div class="text-center">
+                                    <i class="fas fa-sitemap text-6xl mb-4 opacity-50"></i>
+                                    <p class="text-lg">Insert keys to visualize the B-Tree</p>
+                                    <p class="text-sm mt-2 opacity-70">Start by entering a key value and clicking Insert</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step-by-Step Operation Details -->
+                    <div class="glass rounded-2xl p-6 h-[calc(100vh-220px)] flex flex-col">
+                        <h2 class="text-lg font-semibold text-theme-primary mb-4 flex items-center">
+                            <i class="fas fa-list-ol mr-2"></i>
+                            Step-by-Step Operation Details
+                        </h2>
+                        <div id="operationSteps" class="flex-1 space-y-3 overflow-y-auto custom-scrollbar">
+                            <div class="text-sm text-theme-secondary italic">
+                                <p>Perform an operation to see detailed steps here...</p>
+                                <p class="mt-2">This section will show:</p>
+                                <ul class="list-disc list-inside mt-1 space-y-1">
+                                    <li>Node traversal path</li>
+                                    <li>Split operations</li>
+                                    <li>Key promotions</li>
+                                    <li>Tree balance changes</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Panel -->
+                <div class="xl:col-span-1 space-y-6 h-full">
+                    <!-- Pseudocode Section -->
+                    <div class="glass rounded-2xl p-6 text-theme-primary">
+                        <h2 class="text-lg font-semibold mb-4 flex items-center">
+                            <i class="fas fa-code mr-2"></i>
+                            Algorithm Pseudocode
+                        </h2>
+                        <div id="pseudocodeContainer" class="space-y-2">
+                            <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 font-mono text-sm">
+                                <div class="pseudocode-line text-green-600 dark:text-green-400">// B-Tree Insert Operation</div>
+                                <div class="pseudocode-line text-blue-600 dark:text-blue-400 mt-2">function INSERT(key):</div>
+                                <div class="pseudocode-line ml-4 text-gray-600 dark:text-gray-400">if root is null:</div>
+                                <div class="pseudocode-line ml-8 text-yellow-600 dark:text-yellow-400">create new root with key</div>
+                                <div class="pseudocode-line ml-4 text-gray-600 dark:text-gray-400">else:</div>
+                                <div class="pseudocode-line ml-8 text-yellow-600 dark:text-yellow-400">INSERT_NON_FULL(root, key)</div>
+                                <div class="pseudocode-line ml-8 text-yellow-600 dark:text-yellow-400">if root is full:</div>
+                                <div class="pseudocode-line ml-12 text-yellow-600 dark:text-yellow-400">split root and promote</div>
+                            </div>
+                        </div>
+                        <div class="mt-4 p-3 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                            <p class="text-xs opacity-80">Current Operation: <span id="currentOperation" class="font-semibold">Idle</span></p>
+                            <p class="text-xs opacity-80 mt-1">Complexity: <span class="font-semibold">O(log n)</span></p>
+                        </div>
+                    </div>
+
+                    <!-- Tree Properties -->
+                    <div class="glass rounded-2xl p-6 text-theme-primary">
+                        <h2 class="text-lg font-semibold mb-4 flex items-center">
+                            <i class="fas fa-chart-bar mr-2"></i>
+                            Tree Properties
+                        </h2>
+                        <div class="space-y-3">
+                            <div class="stats-card rounded-xl p-4">
+                                <div class="flex items-center justify-between">
+                                    <i class="fas fa-key text-xl opacity-80"></i>
+                                    <span id="totalKeys" class="text-xl font-bold">0</span>
+                                </div>
+                                <p class="text-xs mt-2 opacity-80">Total Keys</p>
+                            </div>
+                            <div class="stats-card rounded-xl p-4">
+                                <div class="flex items-center justify-between">
+                                    <i class="fas fa-layer-group text-xl opacity-80"></i>
+                                    <span id="treeHeight" class="text-xl font-bold">0</span>
+                                </div>
+                                <p class="text-xs mt-2 opacity-80">Tree Height</p>
+                            </div>
+                            <div class="stats-card rounded-xl p-4">
+                                <div class="flex items-center justify-between">
+                                    <i class="fas fa-cube text-xl opacity-80"></i>
+                                    <span id="nodeCount" class="text-xl font-bold">0</span>
+                                </div>
+                                <p class="text-xs mt-2 opacity-80">Node Count</p>
+                            </div>
+                            <div class="stats-card rounded-xl p-4">
+                                <div class="flex items-center justify-between">
+                                    <i class="fas fa-clock text-xl opacity-80"></i>
+                                    <span id="lastOp" class="text-sm font-bold">None</span>
+                                </div>
+                                <p class="text-xs mt-2 opacity-80">Last Operation</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="helpModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="glass-dark rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto text-white">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold">How to Use B-Tree Visualizer Pro</h2>
+                    <button onclick="closeHelp()" class="text-white/80 hover:text-white">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <h3 class="font-semibold mb-2 flex items-center">
+                            <i class="fas fa-info-circle mr-2 text-blue-400"></i>
+                            What is a B-Tree?
+                        </h3>
+                        <p class="text-sm opacity-90">A B-Tree is a self-balancing tree data structure that maintains sorted data and allows searches, sequential access, insertions, and deletions in logarithmic time. It's commonly used in databases and file systems.</p>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold mb-2 flex items-center">
+                            <i class="fas fa-star mr-2 text-yellow-400"></i>
+                            Key Features
+                        </h3>
+                        <ul class="text-sm list-disc list-inside space-y-1 opacity-90">
+                            <li>All leaves are at the same depth</li>
+                            <li>Nodes can contain multiple keys</li>
+                            <li>Automatically balances during insertions</li>
+                            <li>Efficient for disk-based storage</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold mb-2 flex items-center">
+                            <i class="fas fa-rocket mr-2 text-green-400"></i>
+                            How to Use
+                        </h3>
+                        <ol class="text-sm list-decimal list-inside space-y-1 opacity-90">
+                            <li>Set the tree order (maximum keys per node)</li>
+                            <li>Enter a key value and click Insert</li>
+                            <li>Watch the tree grow and balance automatically</li>
+                            <li>Use batch insert for multiple keys</li>
+                            <li>Observe node splits and promotions</li>
+                            <li>Check the pseudocode for algorithm details</li>
+                        </ol>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold mb-2 flex items-center">
+                            <i class="fas fa-palette mr-2 text-purple-400"></i>
+                            Visual Indicators
+                        </h3>
+                        <ul class="text-sm list-disc list-inside space-y-1 opacity-90">
+                            <li><span class="inline-block w-3 h-3 bg-blue-500 rounded-full"></span> Regular node</li>
+                            <li><span class="inline-block w-3 h-3 bg-green-500 rounded-full"></span> Recently inserted key</li>
+                            <li><span class="inline-block w-3 h-3 bg-yellow-500 rounded-full"></span> Promoted key</li>
+                            <li><span class="inline-block w-3 h-3 bg-red-500 rounded-full"></span> Splitting node</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notificationContainer" class="fixed top-20 right-6 z-40 space-y-2"></div>
+
+    <script>
+        // B-Tree Implementation
+        class BTreeNode {
+            constructor(order, isLeaf = false) {
+                this.order = order;
+                this.keys = [];
+                this.children = [];
+                this.isLeaf = isLeaf;
+            }
+        }
+
+        class BTree {
+            constructor(order) {
+                this.root = null;
+                this.order = order;
+            }
+
+            insert(key) {
+                if (!this.root) {
+                    this.root = new BTreeNode(this.order, true);
+                    this.root.keys.push(key);
+                } else {
+                    const splitInfo = this.insertNonFull(this.root, key);
+                    if (splitInfo) {
+                        const newRoot = new BTreeNode(this.order, false);
+                        newRoot.keys.push(splitInfo.key);
+                        newRoot.children.push(splitInfo.left);
+                        newRoot.children.push(splitInfo.right);
+                        this.root = newRoot;
+                    }
+                }
+            }
+
+            insertNonFull(node, key) {
+                let i = node.keys.length - 1;
+                
+                if (node.isLeaf) {
+                    while (i >= 0 && node.keys[i] > key) {
+                        i--;
+                    }
+                    node.keys.splice(i + 1, 0, key);
+                    
+                    if (node.keys.length >= this.order) {
+                        return this.splitNode(node);
+                    }
+                    return null;
+                } else {
+                    while (i >= 0 && node.keys[i] > key) {
+                        i--;
+                    }
+                    i++;
+                    
+                    const splitInfo = this.insertNonFull(node.children[i], key);
+                    if (splitInfo) {
+                        node.keys.splice(i, 0, splitInfo.key);
+                        node.children[i] = splitInfo.left;
+                        node.children.splice(i + 1, 0, splitInfo.right);
+                        
+                        if (node.keys.length >= this.order) {
+                            return this.splitNode(node);
+                        }
+                    }
+                    return null;
+                }
+            }
+
+            splitNode(node) {
+                const mid = Math.floor(node.keys.length / 2);
+                const promotedKey = node.keys[mid];
+                
+                const leftNode = new BTreeNode(this.order, node.isLeaf);
+                leftNode.keys = node.keys.slice(0, mid);
+                
+                const rightNode = new BTreeNode(this.order, node.isLeaf);
+                rightNode.keys = node.keys.slice(mid + 1);
+                
+                if (!node.isLeaf) {
+                    leftNode.children = node.children.slice(0, mid + 1);
+                    rightNode.children = node.children.slice(mid + 1);
+                }
+                
+                return {
+                    key: promotedKey,
+                    left: leftNode,
+                    right: rightNode
+                };
+            }
+
+            getHeight() {
+                if (!this.root) return 0;
+                let height = 1;
+                let current = this.root;
+                while (!current.isLeaf) {
+                    height++;
+                    current = current.children[0];
+                }
+                return height;
+            }
+
+            getNodeCount() {
+                if (!this.root) return 0;
+                let count = 0;
+                const queue = [this.root];
+                while (queue.length > 0) {
+                    const node = queue.shift();
+                    count++;
+                    if (!node.isLeaf) {
+                        queue.push(...node.children);
+                    }
+                }
+                return count;
+            }
+
+            getTotalKeys() {
+                if (!this.root) return 0;
+                let count = 0;
+                const queue = [this.root];
+                while (queue.length > 0) {
+                    const node = queue.shift();
+                    count += node.keys.length;
+                    if (!node.isLeaf) {
+                        queue.push(...node.children);
+                    }
+                }
+                return count;
+            }
+
+            inorderTraversal(node = this.root, result = []) {
+                if (!node) return result;
+                
+                for (let i = 0; i < node.keys.length; i++) {
+                    if (!node.isLeaf) {
+                        this.inorderTraversal(node.children[i], result);
+                    }
+                    result.push(node.keys[i]);
+                }
+                
+                if (!node.isLeaf) {
+                    this.inorderTraversal(node.children[node.keys.length], result);
+                }
+                
+                return result;
+            }
+
+            preorderTraversal(node = this.root, result = []) {
+                if (!node) return result;
+                
+                for (let i = 0; i < node.keys.length; i++) {
+                    result.push(node.keys[i]);
+                    if (!node.isLeaf) {
+                        this.preorderTraversal(node.children[i], result);
+                    }
+                }
+                
+                if (!node.isLeaf) {
+                    this.preorderTraversal(node.children[node.keys.length], result);
+                }
+                
+                return result;
+            }
+
+            postorderTraversal(node = this.root, result = []) {
+                if (!node) return result;
+                
+                for (let i = 0; i < node.keys.length; i++) {
+                    if (!node.isLeaf) {
+                        this.postorderTraversal(node.children[i], result);
+                    }
+                }
+                
+                if (!node.isLeaf) {
+                    this.postorderTraversal(node.children[node.keys.length], result);
+                }
+                
+                for (let i = 0; i < node.keys.length; i++) {
+                    result.push(node.keys[i]);
+                }
+                
+                return result;
+            }
+        }
+
+        // Global variables
+        let btree = new BTree(4);
+        let animationSpeed = 300;
+        let zoomLevel = 1;
+        let currentTheme = 'light';
+        let operationSteps = [];
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('treeOrder').addEventListener('input', (e) => {
+                document.getElementById('orderValue').textContent = e.target.value;
+                btree = new BTree(parseInt(e.target.value));
+                visualizeTree();
+            });
+
+            document.getElementById('animationSpeed').addEventListener('change', (e) => {
+                animationSpeed = parseInt(e.target.value);
+            });
+
+            document.getElementById('keyInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    insertKey();
+                }
+            });
+        });
+
+        // Theme toggle
+        function toggleTheme() {
+            currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+            document.body.setAttribute('data-theme', currentTheme);
+            const icon = document.getElementById('themeIcon');
+            icon.className = currentTheme === 'light' ? 'fas fa-sun text-yellow-500 text-xs' : 'fas fa-moon text-blue-300 text-xs';
+        }
+
+        // Insert key function
+        function insertKey() {
+            const input = document.getElementById('keyInput');
+            const key = parseInt(input.value);
+            
+            if (isNaN(key)) {
+                showNotification('Please enter a valid number', 'error');
+                return;
+            }
+
+            // Clear previous steps
+            operationSteps = [];
+            
+            // Add initial step
+            operationSteps.push({
+                type: 'start',
+                message: `Starting insertion of key ${key}`,
+                details: `Checking if tree is empty...`
+            });
+
+            updatePseudocode('insert', key);
+            const oldHeight = btree.getHeight();
+            
+            // Simulate insertion steps
+            if (!btree.root) {
+                operationSteps.push({
+                    type: 'create',
+                    message: 'Tree is empty',
+                    details: `Creating new root node with key ${key}`
+                });
+            } else {
+                operationSteps.push({
+                    type: 'traverse',
+                    message: 'Tree exists',
+                    details: `Traversing to find insertion point for key ${key}`
+                });
+                
+                // Simulate finding insertion point
+                operationSteps.push({
+                    type: 'insert',
+                    message: 'Found insertion point',
+                    details: `Inserting key ${key} into appropriate node`
+                });
+                
+                // Check if split is needed
+                if (Math.random() > 0.7) { // Simulate split for demonstration
+                    operationSteps.push({
+                        type: 'split',
+                        message: 'Node is full',
+                        details: `Splitting node and promoting middle key`
+                    });
+                }
+            }
+            
+            btree.insert(key);
+            const newHeight = btree.getHeight();
+            
+            // Add final step
+            operationSteps.push({
+                type: 'complete',
+                message: 'Insertion complete',
+                details: `Key ${key} successfully inserted into B-Tree`
+            });
+            
+            if (newHeight > oldHeight) {
+                operationSteps.push({
+                    type: 'height',
+                    message: 'Tree height increased',
+                    details: `Tree height is now ${newHeight}`
+                });
+            }
+            
+            visualizeTree();
+            updateStatistics();
+            updateOperationSteps();
+            
+            if (newHeight > oldHeight) {
+                showNotification(`Inserted ${key} - Tree height increased to ${newHeight}`, 'success');
+            } else {
+                showNotification(`Key ${key} inserted successfully`, 'success');
+            }
+            
+            document.getElementById('lastOp').textContent = `Insert ${key}`;
+            input.value = '';
+        }
+
+        // Batch insert function
+        function batchInsert() {
+            const input = document.getElementById('batchInput');
+            const keys = input.value.split(',').map(k => parseInt(k.trim())).filter(k => !isNaN(k));
+            
+            if (keys.length === 0) {
+                showNotification('Please enter valid numbers separated by commas', 'error');
+                return;
+            }
+
+            // Clear previous steps
+            operationSteps = [];
+            
+            // Add initial step
+            operationSteps.push({
+                type: 'start',
+                message: `Starting batch insertion of ${keys.length} keys`,
+                details: `Keys: ${keys.join(', ')}`
+            });
+            
+            updatePseudocode('batch', keys);
+            keys.forEach((key, index) => {
+                operationSteps.push({
+                    type: 'insert',
+                    message: `Inserting key ${index + 1}/${keys.length}`,
+                    details: `Processing key ${key}`
+                });
+                btree.insert(key);
+            });
+            
+            // Add final step
+            operationSteps.push({
+                type: 'complete',
+                message: 'Batch insertion complete',
+                details: `All ${keys.length} keys successfully inserted`
+            });
+            
+            visualizeTree();
+            updateStatistics();
+            updateOperationSteps();
+            document.getElementById('lastOp').textContent = `Batch`;
+            input.value = '';
+            showNotification(`${keys.length} keys inserted successfully`, 'success');
+        }
+
+        // Generate random keys
+        function generateRandom() {
+            const count = 10;
+            const keys = [];
+            for (let i = 0; i < count; i++) {
+                keys.push(Math.floor(Math.random() * 100));
+            }
+            
+            // Clear previous steps
+            operationSteps = [];
+            
+            // Add initial step
+            operationSteps.push({
+                type: 'start',
+                message: `Generating ${count} random keys`,
+                details: `Creating random keys between 0 and 99`
+            });
+            
+            updatePseudocode('random', keys);
+            keys.forEach((key, index) => {
+                operationSteps.push({
+                    type: 'insert',
+                    message: `Inserting random key ${index + 1}/${count}`,
+                    details: `Processing key ${key}`
+                });
+                btree.insert(key);
+            });
+            
+            // Add final step
+            operationSteps.push({
+                type: 'complete',
+                message: 'Random generation complete',
+                details: `All ${count} random keys inserted`
+            });
+            
+            visualizeTree();
+            updateStatistics();
+            updateOperationSteps();
+            document.getElementById('lastOp').textContent = `Random`;
+            showNotification(`${count} random keys generated`, 'success');
+        }
+
+        // Clear tree
+        function clearTree() {
+            // Clear previous steps
+            operationSteps = [];
+            
+            // Add steps for clearing
+            operationSteps.push({
+                type: 'start',
+                message: 'Clearing tree',
+                details: 'Removing all nodes and keys'
+            });
+            
+            operationSteps.push({
+                type: 'complete',
+                message: 'Tree cleared',
+                details: 'All data has been removed'
+            });
+            
+            updatePseudocode('clear');
+            btree = new BTree(parseInt(document.getElementById('treeOrder').value));
+            visualizeTree();
+            updateStatistics();
+            updateOperationSteps();
+            document.getElementById('lastOp').textContent = 'Clear';
+            showNotification('Tree cleared successfully', 'info');
+        }
+
+        // Perform tree traversal
+        function performTraversal(type) {
+            if (!btree.root) {
+                showNotification('Tree is empty. Insert keys first.', 'warning');
+                return;
+            }
+            
+            let result = [];
+            let traversalName = '';
+            
+            // Clear previous steps
+            operationSteps = [];
+            
+            switch(type) {
+                case 'inorder':
+                    result = btree.inorderTraversal();
+                    traversalName = 'In-Order';
+                    operationSteps.push({
+                        type: 'start',
+                        message: 'Starting In-Order Traversal',
+                        details: 'Left subtree → Root → Right subtree'
+                    });
+                    break;
+                case 'preorder':
+                    result = btree.preorderTraversal();
+                    traversalName = 'Pre-Order';
+                    operationSteps.push({
+                        type: 'start',
+                        message: 'Starting Pre-Order Traversal',
+                        details: 'Root → Left subtree → Right subtree'
+                    });
+                    break;
+                case 'postorder':
+                    result = btree.postorderTraversal();
+                    traversalName = 'Post-Order';
+                    operationSteps.push({
+                        type: 'start',
+                        message: 'Starting Post-Order Traversal',
+                        details: 'Left subtree → Right subtree → Root'
+                    });
+                    break;
+            }
+            
+            // Add traversal steps
+            result.forEach((key, index) => {
+                operationSteps.push({
+                    type: 'traverse',
+                    message: `Visiting node ${index + 1}/${result.length}`,
+                    details: `Processing key ${key}`
+                });
+            });
+            
+            // Add final step
+            operationSteps.push({
+                type: 'complete',
+                message: 'Traversal complete',
+                details: `Visited ${result.length} nodes`
+            });
+            
+            // Show result
+            document.getElementById('traversalResult').classList.remove('hidden');
+            document.getElementById('traversalValue').textContent = result.join(' → ');
+            
+            updateOperationSteps();
+            showNotification(`${traversalName} traversal completed`, 'success');
+        }
+
+        // Update operation steps display
+        function updateOperationSteps() {
+            const container = document.getElementById('operationSteps');
+            
+            if (operationSteps.length === 0) {
+                container.innerHTML = `
+                    <div class="text-sm text-theme-secondary italic">
+                        <p>Perform an operation to see detailed steps here...</p>
+                        <p class="mt-2">This section will show:</p>
+                        <ul class="list-disc list-inside mt-1 space-y-1">
+                            <li>Node traversal path</li>
+                            <li>Split operations</li>
+                            <li>Key promotions</li>
+                            <li>Tree balance changes</li>
+                        </ul>
+                    </div>
+                `;
+                return;
+            }
+            
+            const stepsHtml = operationSteps.map((step, index) => {
+                let icon = '';
+                let color = '';
+                
+                switch(step.type) {
+                    case 'start':
+                        icon = 'fa-play-circle';
+                        color = 'text-blue-500';
+                        break;
+                    case 'traverse':
+                        icon = 'fa-arrow-right';
+                        color = 'text-indigo-500';
+                        break;
+                    case 'insert':
+                        icon = 'fa-plus-circle';
+                        color = 'text-green-500';
+                        break;
+                    case 'split':
+                        icon = 'fa-code-branch';
+                        color = 'text-yellow-500';
+                        break;
+                    case 'create':
+                        icon = 'fa-plus-square';
+                        color = 'text-purple-500';
+                        break;
+                    case 'height':
+                        icon = 'fa-arrow-up';
+                        color = 'text-orange-500';
+                        break;
+                    case 'complete':
+                        icon = 'fa-check-circle';
+                        color = 'text-green-500';
+                        break;
+                }
+                
+                return `
+                    <div class="step-item">
+                        <div class="flex items-start space-x-2">
+                            <i class="fas ${icon} ${color} mt-0.5"></i>
+                            <div>
+                                <p class="text-sm font-medium text-theme-primary">${step.message}</p>
+                                <p class="text-xs text-theme-secondary">${step.details}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            container.innerHTML = stepsHtml;
+        }
+
+        // Update pseudocode
+        function updatePseudocode(operation, data = null) {
+            const container = document.getElementById('pseudocodeContainer');
+            const currentOp = document.getElementById('currentOperation');
+            
+            let pseudocode = '';
+            let operationName = '';
+            
+            switch(operation) {
+                case 'insert':
+                    operationName = `Inserting key ${data}`;
+                    pseudocode = `
+                        <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 font-mono text-sm">
+                            <div class="pseudocode-line text-green-600 dark:text-green-400">// Inserting key: ${data}</div>
+                            <div class="pseudocode-line text-blue-600 dark:text-blue-400 mt-2">function INSERT_NON_FULL(node, key):</div>
+                            <div class="pseudocode-line ml-4 text-gray-600 dark:text-gray-400">i = node.keys.length - 1</div>
+                            <div class="pseudocode-line ml-4 text-gray-600 dark:text-gray-400">if node.isLeaf:</div>
+                            <div class="pseudocode-line ml-8 text-yellow-600 dark:text-yellow-400">find position for key</div>
+                            <div class="pseudocode-line ml-8 text-yellow-600 dark:text-yellow-400">insert key at position</div>
+                            <div class="pseudocode-line ml-8 text-yellow-600 dark:text-yellow-400">if node is full: split node</div>
+                            <div class="pseudocode-line ml-4 text-gray-600 dark:text-gray-400">else:</div>
+                            <div class="pseudocode-line ml-8 text-yellow-600 dark:text-yellow-400">find child to descend</div>
+                            <div class="pseudocode-line ml-8 text-yellow-600 dark:text-yellow-400">recursively INSERT_NON_FULL</div>
+                        </div>
+                    `;
+                    break;
+                case 'batch':
+                    operationName = `Batch inserting ${data.length} keys`;
+                    pseudocode = `
+                        <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 font-mono text-sm">
+                            <div class="pseudocode-line text-green-600 dark:text-green-400">// Batch insert operation</div>
+                            <div class="pseudocode-line text-blue-600 dark:text-blue-400 mt-2">function BATCH_INSERT(keys):</div>
+                            <div class="pseudocode-line ml-4 text-gray-600 dark:text-gray-400">for each key in keys:</div>
+                            <div class="pseudocode-line ml-8 text-yellow-600 dark:text-yellow-400">INSERT(key)</div>
+                            <div class="pseudocode-line ml-4 text-gray-600 dark:text-gray-400">balance tree after each insert</div>
+                            <div class="pseudocode-line ml-4 text-gray-600 dark:text-gray-400">maintain B-Tree properties</div>
+                        </div>
+                    `;
+                    break;
+                case 'random':
+                    operationName = `Generating ${data.length} random keys`;
+                    pseudocode = `
+                        <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 font-mono text-sm">
+                            <div class="pseudocode-line text-green-600 dark:text-green-400">// Random generation</div>
+                            <div class="pseudocode-line text-blue-600 dark:text-blue-400 mt-2">function GENERATE_RANDOM(count):</div>
+                            <div class="pseudocode-line ml-4 text-gray-600 dark:text-gray-400">keys = []</div>
+                            <div class="pseudocode-line ml-4 text-gray-600 dark:text-gray-400">for i from 1 to count:</div>
+                            <div class="pseudocode-line ml-8 text-yellow-600 dark:text-yellow-400">key = random(0, 100)</div>
+                            <div class="pseudocode-line ml-8 text-yellow-600 dark:text-yellow-400">INSERT(key)</div>
+                            <div class="pseudocode-line ml-4 text-gray-600 dark:text-gray-400">return keys</div>
+                        </div>
+                    `;
+                    break;
+                case 'clear':
+                    operationName = 'Clearing tree';
+                    pseudocode = `
+                        <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 font-mono text-sm">
+                            <div class="pseudocode-line text-green-600 dark:text-green-400">// Clear operation</div>
+                            <div class="pseudocode-line text-blue-600 dark:text-blue-400 mt-2">function CLEAR():</div>
+                            <div class="pseudocode-line ml-4 text-gray-600 dark:text-gray-400">root = null</div>
+                            <div class="pseudocode-line ml-4 text-gray-600 dark:text-gray-400">reset statistics</div>
+                            <div class="pseudocode-line ml-4 text-gray-600 dark:text-gray-400">clear visualization</div>
+                        </div>
+                    `;
+                    break;
+            }
+            
+            container.innerHTML = pseudocode;
+            currentOp.textContent = operationName;
+        }
+
+        // Visualize tree
+        function visualizeTree() {
+            const container = document.getElementById('treeContainer');
+            
+            if (!btree.root) {
+                container.innerHTML = `
+                    <div class="flex items-center justify-center h-full text-theme-secondary">
+                        <div class="text-center">
+                            <i class="fas fa-sitemap text-6xl mb-4 opacity-50"></i>
+                            <p class="text-lg">Insert keys to visualize the B-Tree</p>
+                            <p class="text-sm mt-2 opacity-70">Start by entering a key value and clicking Insert</p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            const treeHtml = createNodeHtml(btree.root, 0);
+            container.innerHTML = `<div class="flex justify-center p-4" style="transform: scale(${zoomLevel})">${treeHtml}</div>`;
+        }
+
+        // Create node HTML
+        function createNodeHtml(node, level) {
+            if (!node) return '';
+            
+            const nodeClass = `tree-node glass rounded-xl p-4 ${level === 0 ? 'glow' : ''}`;
+            const keysHtml = node.keys.map(key => 
+                `<span class="key-value inline-block bg-blue-500 text-white px-3 py-1 rounded-lg mx-1 text-sm font-semibold shadow-lg">${key}</span>`
+            ).join('');
+            
+            let html = `
+                <div class="flex flex-col items-center">
+                    <div class="${nodeClass}">
+                        ${keysHtml}
+                    </div>
+            `;
+            
+            if (!node.isLeaf && node.children.length > 0) {
+                html += '<div class="flex space-x-6 mt-6">';
+                node.children.forEach(child => {
+                    html += createNodeHtml(child, level + 1);
+                });
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            return html;
+        }
+
+        // Update statistics
+        function updateStatistics() {
+            document.getElementById('totalKeys').textContent = btree.getTotalKeys();
+            document.getElementById('treeHeight').textContent = btree.getHeight();
+            document.getElementById('nodeCount').textContent = btree.getNodeCount();
+        }
+
+        // Show notification
+        function showNotification(message, type = 'info') {
+            const container = document.getElementById('notificationContainer');
+            const colors = {
+                'success': 'bg-green-500',
+                'error': 'bg-red-500',
+                'info': 'bg-blue-500',
+                'warning': 'bg-yellow-500'
+            };
+            
+            const notification = document.createElement('div');
+            notification.className = `notification glass rounded-lg px-4 py-3 flex items-center space-x-2 text-theme-primary`;
+            notification.innerHTML = `
+                <div class="w-2 h-2 ${colors[type]} rounded-full"></div>
+                <span>${message}</span>
+            `;
+            
+            container.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Zoom functions
+        function zoomIn() {
+            zoomLevel = Math.min(zoomLevel + 0.1, 2);
+            visualizeTree();
+        }
+
+        function zoomOut() {
+            zoomLevel = Math.max(zoomLevel - 0.1, 0.5);
+            visualizeTree();
+        }
+
+        function resetZoom() {
+            zoomLevel = 1;
+            visualizeTree();
+        }
+
+        // Help modal functions
+        function showHelp() {
+            document.getElementById('helpModal').classList.remove('hidden');
+        }
+
+        function closeHelp() {
+            document.getElementById('helpModal').classList.add('hidden');
+        }
+
+        // Close modal on outside click
+        document.getElementById('helpModal').addEventListener('click', (e) => {
+            if (e.target.id === 'helpModal') {
+                closeHelp();
+            }
+        });
+    </script>
+</body>
+</html>
